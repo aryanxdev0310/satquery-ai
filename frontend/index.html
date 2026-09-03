@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SatQuery AI - Flood Detection Demo</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card-bg: #1e293b;
+      --border: #334155;
+      --primary: #38bdf8;
+      --primary-hover: #0284c7;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --success: #10b981;
+      --danger: #ef4444;
+      --warning: #f59e0b;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      padding: 20px;
+    }
+    .container {
+      max-width: 1280px;
+      margin: 0 auto;
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 24px;
+    }
+    .badge {
+      display: inline-block;
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 9999px;
+      background: #0369a1;
+      color: #e0f2fe;
+      margin-left: 10px;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: 380px 1fr;
+      gap: 24px;
+    }
+    @media (max-width: 900px) {
+      .grid { grid-template-columns: 1fr; }
+    }
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
+    }
+    .card h2 {
+      font-size: 1.15rem;
+      margin-bottom: 16px;
+      color: var(--primary);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    label {
+      display: block;
+      font-size: 0.875rem;
+      font-weight: 500;
+      margin-bottom: 6px;
+      color: var(--text-muted);
+    }
+    input[type="text"], select {
+      width: 100%;
+      padding: 10px 12px;
+      background: #0f172a;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 0.95rem;
+      margin-bottom: 14px;
+    }
+    input[type="text"]:focus, select:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+    .quick-queries {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 16px;
+    }
+    .chip {
+      font-size: 0.75rem;
+      background: #334155;
+      padding: 4px 8px;
+      border-radius: 6px;
+      cursor: pointer;
+      color: #cbd5e1;
+      transition: background 0.15s;
+    }
+    .chip:hover {
+      background: var(--primary);
+      color: #0f172a;
+    }
+    button.btn-primary {
+      width: 100%;
+      padding: 12px;
+      background: var(--primary);
+      color: #0f172a;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s, transform 0.05s;
+    }
+    button.btn-primary:hover {
+      background: var(--primary-hover);
+    }
+    button.btn-primary:active {
+      transform: scale(0.99);
+    }
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .stat-card {
+      background: #0f172a;
+      padding: 12px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      text-align: center;
+    }
+    .stat-val {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: var(--primary);
+    }
+    .stat-label {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+    #map {
+      height: 480px;
+      width: 100%;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      margin-bottom: 16px;
+      z-index: 1;
+    }
+    .alert {
+      padding: 12px 16px;
+      border-radius: 8px;
+      margin-bottom: 16px;
+      font-size: 0.9rem;
+    }
+    .alert-danger {
+      background: rgba(239, 68, 68, 0.15);
+      border: 1px solid var(--danger);
+      color: #fca5a5;
+    }
+    .alert-success {
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid var(--success);
+      color: #6ee7b7;
+    }
+    pre.json-box {
+      background: #0f172a;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px;
+      font-size: 0.8rem;
+      max-height: 180px;
+      overflow-y: auto;
+      color: #cbd5e1;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div>
+        <h1 style="font-size: 1.6rem; font-weight: 700;">
+          SatQuery AI
+          <span class="badge">Member 6: Dataset + Testing + Demo</span>
+        </h1>
+        <p style="font-size: 0.875rem; color: var(--text-muted); margin-top: 4px;">
+          Natural Language Query Understanding & Geospatial Sentinel-2 Flood Detection
+        </p>
+      </div>
+      <div style="font-size: 0.85rem; color: var(--text-muted); text-align: right;">
+        Platform: Python 3.14 + Rasterio + Leaflet
+      </div>
+    </header>
+
+    <div class="grid">
+      <!-- Left Panel: Controls -->
+      <div class="card">
+        <h2>Demo Controls</h2>
+
+        <label for="queryInput">1. Natural Language Query</label>
+        <input type="text" id="queryInput" value="Which areas are flooded in this satellite image?" />
+
+        <div class="quick-queries">
+          <span class="chip" onclick="setQuery('Which areas are flooded in this satellite image?')">Flooded areas</span>
+          <span class="chip" onclick="setQuery('Show water inundation and submerged lands')">Inundation</span>
+          <span class="chip" onclick="setQuery('Show vegetation health')">Vegetation (NDVI)</span>
+          <span class="chip" onclick="setQuery('Compare before and after satellite images')">Change Detection</span>
+          <span class="chip" onclick="setQuery('Tell me a joke')">Unknown Query</span>
+        </div>
+
+        <label for="datasetSelect">2. Demo Dataset Selection</label>
+        <select id="datasetSelect">
+          <option value="data/demo/sample.tif" selected>Sentinel-2 GeoTIFF (Spain Flood - sample.tif [13 Bands])</option>
+          <option value="data/demo_rgb.png">Standard RGB Image (demo_rgb.png [Error Handling Test])</option>
+        </select>
+
+        <label for="thresholdInput">3. Water Detection Threshold (MNDWI)</label>
+        <input type="text" id="thresholdInput" value="0.0" />
+        <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: -10px; margin-bottom: 16px;">
+          Standard scientific threshold: values &gt; 0.0 classify open water.
+        </p>
+
+        <button class="btn-primary" id="runBtn" onclick="runAnalysis()">Run Flood Analysis Demo</button>
+
+        <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--border); font-size: 0.8rem; color: var(--text-muted);">
+          <strong>Pipeline Steps:</strong><br>
+          1. AI Query Routing (Member 5)<br>
+          2. Spectral Band Check: B3, B8, B11 (Member 4)<br>
+          3. MNDWI Index Calculation<br>
+          4. Vectorized GeoJSON &amp; Area Metric
+        </div>
+      </div>
+
+      <!-- Right Panel: Visualization -->
+      <div class="card">
+        <h2>Visualization &amp; Analysis Results</h2>
+
+        <div id="alertBox"></div>
+
+        <div class="stats-row">
+          <div class="stat-card">
+            <div class="stat-val" id="statIntent">--</div>
+            <div class="stat-label">AI Intent (Confidence)</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-val" id="statArea">--</div>
+            <div class="stat-label">Flood Area (km?)</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-val" id="statFeatures">--</div>
+            <div class="stat-label">Flood Polygons</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-val" id="statIndex">MNDWI</div>
+            <div class="stat-label">Algorithm</div>
+          </div>
+        </div>
+
+        <div id="map"></div>
+
+        <details style="margin-top: 14px;">
+          <summary style="cursor: pointer; font-size: 0.85rem; color: var(--primary); margin-bottom: 8px;">
+            View Backend JSON Output
+          </summary>
+          <pre class="json-box" id="jsonOutput">Click 'Run Flood Analysis Demo' to inspect raw response...</pre>
+        </details>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let map = L.map('map').setView([38.105, -0.758], 13);
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+      attribution: 'Tiles &copy; Esri &mdash; Source: Esri, Maxar, Earthstar Geographics'
+    }).addTo(map);
+
+    let floodLayer = null;
+
+    function setQuery(q) {
+      document.getElementById('queryInput').value = q;
+    }
+
+    async function runAnalysis() {
+      const btn = document.getElementById('runBtn');
+      btn.innerText = 'Processing...';
+      btn.disabled = true;
+
+      const alertBox = document.getElementById('alertBox');
+      alertBox.innerHTML = '';
+
+      const query = document.getElementById('queryInput').value;
+      const dataset = document.getElementById('datasetSelect').value;
+      const threshold = parseFloat(document.getElementById('thresholdInput').value) || 0.0;
+
+      try {
+        const response = await fetch('/api/analyze', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query, dataset, threshold })
+        });
+
+        const data = await response.json();
+        document.getElementById('jsonOutput').innerText = JSON.stringify(data, null, 2);
+
+        // 1. Update AI Intent
+        const ai = data.query_analysis || {};
+        const conf = ai.confidence ? Math.round(ai.confidence * 100) : 0;
+        document.getElementById('statIntent').innerText = `${ai.analysis_type || 'unknown'} (${conf}%)`;
+
+        // 2. Check GIS result
+        const gis = data.gis_analysis || {};
+        if (gis.status === 'success') {
+          alertBox.innerHTML = `
+            <div class="alert alert-success">
+              <strong>Flood Analysis Succeeded!</strong> Detected ${gis.affected_area_km2} km? of flood water inundation in Sentinel-2 imagery.
+            </div>`;
+          document.getElementById('statArea').innerText = gis.affected_area_km2.toFixed(3);
+          const featCount = gis.result && gis.result.features ? gis.result.features.length : 0;
+          document.getElementById('statFeatures').innerText = featCount;
+
+          // Render on Leaflet
+          if (floodLayer) map.removeLayer(floodLayer);
+          if (gis.result && gis.result.features) {
+            floodLayer = L.geoJSON(gis.result, {
+              style: {
+                color: '#38bdf8',
+                weight: 1.5,
+                fillColor: '#0284c7',
+                fillOpacity: 0.65
+              }
+            }).addTo(map);
+
+            if (gis.bounds && gis.bounds.length === 4) {
+              const [w, s, e, n] = gis.bounds;
+              map.fitBounds([[s, w], [n, e]]);
+            }
+          }
+        } else {
+          // Handled Error (e.g. RGB image or non-flood query)
+          document.getElementById('statArea').innerText = '0.00';
+          document.getElementById('statFeatures').innerText = '0';
+          if (floodLayer) map.removeLayer(floodLayer);
+
+          const reason = gis.message || 'Dataset cannot be processed for flood analysis.';
+          alertBox.innerHTML = `
+            <div class="alert alert-danger">
+              <strong>Safe Failure (Handled Gracefully):</strong> ${reason}<br>
+              <small style="margin-top: 6px; display: inline-block;">
+                Note: True flood analysis requires georeferenced multispectral bands (B3 Green, B8 NIR, B11 SWIR). Standard 3-channel RGB images lack the physical spectral bands needed for MNDWI water detection.
+              </small>
+            </div>`;
+        }
+      } catch (err) {
+        alertBox.innerHTML = `<div class="alert alert-danger">Application Error: ${err.message}</div>`;
+      } finally {
+        btn.innerText = 'Run Flood Analysis Demo';
+        btn.disabled = false;
+      }
+    }
+
+    // Run automatically on initial load for instant demo display!
+    window.addEventListener('load', () => {
+      runAnalysis();
+    });
+  </script>
+</body>
+</html>
