@@ -5,9 +5,14 @@
 node_modules/
 venv/
 .venv/
+
 __pycache__/
 *.pyc
 
 dist/
 build/
+
 *.log
+
+data/demo/uploads/*
+!.gitkeep
