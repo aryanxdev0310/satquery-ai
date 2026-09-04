@@ -1,0 +1,4 @@
+# SatQuery AI - Core Dependencies
+numpy>=2.0.0
+rasterio>=1.4.0
+pytest>=8.0.0
